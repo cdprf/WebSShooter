@@ -7,6 +7,10 @@
     "WebSShooter (Multi-threaded)": {
       "commandName": "Project",
       "commandLineArgs": "urllist.txt --threads 5"
+    },
+    "WebSShooter (Remove Duplicates)": {
+      "commandName": "Project",
+      "commandLineArgs": "urllist.txt --remove-duplicates"
     }
   }
 }

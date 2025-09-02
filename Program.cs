@@ -20,147 +20,168 @@ class Program
 
     static async Task Main(string[] args)
     {
-        await RunApplication(args);
+        try
+        {
+            await RunApplication(args);
+        }
+        catch (Exception ex)
+        {
+            ConsoleWrite($"An unexpected error occurred: {ex.Message}", ConsoleColor.Red);
+        }
     }
 
     static async Task RunApplication(string[] args)
     {
-        string[] urls;
-        outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshots");
-        logFile = null;
-        logFormat = "text";
-        int threadCount = 10; // Default thread count
+        try
+        {
+            string[] urls;
+            outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshots");
+            logFile = null;
+            logFormat = "text";
+            int threadCount = 10; // Default thread count
 
-        if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
-        {
-            ShowHelp();
-            return;
-        }
-        else
-        {
-            var input = args[0];
-            if (File.Exists(input))
+            if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
             {
-                urls = File.ReadAllLines(input);
+                ShowHelp();
+                return;
             }
             else
             {
-                urls = new string[] { input };
-            }
-            // Output folder, log file, log format parse
-            for (int i = 1; i < args.Length; i++)
-            {
-                if ((args[i] == "--out" || args[i] == "-o") && i + 1 < args.Length)
+                var input = args[0];
+                if (File.Exists(input))
                 {
-                    outputDir = args[i + 1];
-                    i++;
+                    urls = File.ReadAllLines(input);
                 }
-                else if ((args[i] == "--log" || args[i] == "-l") && i + 1 < args.Length)
+                else
                 {
-                    logFile = args[i + 1];
-                    i++;
+                    urls = new string[] { input };
                 }
-                else if (args[i] == "--log-format" && i + 1 < args.Length)
+                // Output folder, log file, log format parse
+                for (int i = 1; i < args.Length; i++)
                 {
-                    var fmt = args[i + 1].ToLower();
-                    if (fmt == "json" || fmt == "text")
-                        logFormat = fmt;
-                    i++;
-                }
-                else if ((args[i] == "--threads" || args[i] == "-t") && i + 1 < args.Length)
-                {
-                    if (int.TryParse(args[i + 1], out int threads))
+                    if ((args[i] == "--out" || args[i] == "-o") && i + 1 < args.Length)
                     {
-                        threadCount = threads > 0 ? threads : 10;
+                        outputDir = args[i + 1];
+                        i++;
                     }
-                    i++;
+                    else if ((args[i] == "--log" || args[i] == "-l") && i + 1 < args.Length)
+                    {
+                        logFile = args[i + 1];
+                        i++;
+                    }
+                    else if (args[i] == "--log-format" && i + 1 < args.Length)
+                    {
+                        var fmt = args[i + 1].ToLower();
+                        if (fmt == "json" || fmt == "text")
+                            logFormat = fmt;
+                        i++;
+                    }
+                    else if ((args[i] == "--threads" || args[i] == "-t") && i + 1 < args.Length)
+                    {
+                        if (int.TryParse(args[i + 1], out int threads))
+                        {
+                            threadCount = threads > 0 ? threads : 10;
+                        }
+                        i++;
+                    }
                 }
             }
-        }
 
-        if (!Directory.Exists(outputDir))
-            Directory.CreateDirectory(outputDir);
+            if (!Directory.Exists(outputDir))
+                Directory.CreateDirectory(outputDir);
 
-        if (!string.IsNullOrEmpty(logFile))
-            logWriter = new StreamWriter(logFile, append: true);
+            if (!string.IsNullOrEmpty(logFile))
+                logWriter = new StreamWriter(logFile, append: true);
 
-        // If only one thread is requested, process sequentially (backward compatibility)
-        if (threadCount <= 1)
-        {
-            new DriverManager().SetUpDriver(new ChromeConfig());
-
-            ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--headless");
-            options.AddArgument("--disable-gpu");
-            options.AddArgument("--window-size=1280,800");
-            options.AddArgument("--ignore-certificate-errors");
-            options.AddExcludedArgument("enable-automation");
-            options.AddExcludedArgument("load-extension");
-            options.AddArgument("--log-level=3");
-            options.AddArgument("--silent");
-            options.AddArgument("--disable-logging");
-
-            var service = ChromeDriverService.CreateDefaultService();
-            service.SuppressInitialDiagnosticInformation = true;
-            service.HideCommandPromptWindow = true;
-            service.EnableVerboseLogging = false;
-
-            using (IWebDriver driver = new ChromeDriver(service, options))
+            // If only one thread is requested, process sequentially (backward compatibility)
+            if (threadCount <= 1)
             {
-                foreach (var url in urls)
+                try
                 {
-                    try
-                    {
-                        driver.Navigate().GoToUrl(url);
-                        if (driver.PageSource.Contains("Bad Request") && (url.StartsWith("http://")))
-                            driver.Navigate().GoToUrl(url.Replace("http://", "https://"));
-                        else if (driver.PageSource.Contains("Bad Request") && (url.StartsWith("https://")))
-                            driver.Navigate().GoToUrl(url.Replace("https://", "http://"));
+                    new DriverManager().SetUpDriver(new ChromeConfig());
 
-                        var screenshot = ((ITakesScreenshot)driver).GetScreenshot();
-                        string fileName = $"screenshot_{ConvertUrlToFileName(url)}.png";
-                        string filePath = Path.Combine(outputDir, fileName);
-                        using (MemoryStream stream = new MemoryStream(screenshot.AsByteArray))
+                    ChromeOptions options = new ChromeOptions();
+                    options.AddArgument("--headless");
+                    options.AddArgument("--disable-gpu");
+                    options.AddArgument("--window-size=1280,800");
+                    options.AddArgument("--ignore-certificate-errors");
+                    options.AddExcludedArgument("enable-automation");
+                    options.AddExcludedArgument("load-extension");
+                    options.AddArgument("--log-level=3");
+                    options.AddArgument("--silent");
+                    options.AddArgument("--disable-logging");
+
+                    var service = ChromeDriverService.CreateDefaultService();
+                    service.SuppressInitialDiagnosticInformation = true;
+                    service.HideCommandPromptWindow = true;
+                    service.EnableVerboseLogging = false;
+
+                    using (IWebDriver driver = new ChromeDriver(service, options))
+                    {
+                        foreach (var url in urls)
                         {
-                            using (var fileStream = File.Create(filePath))
+                            try
                             {
-                                stream.CopyTo(fileStream);
+                                driver.Navigate().GoToUrl(url);
+                                if (driver.PageSource.Contains("Bad Request") && (url.StartsWith("http://")))
+                                    driver.Navigate().GoToUrl(url.Replace("http://", "https://"));
+                                else if (driver.PageSource.Contains("Bad Request") && (url.StartsWith("https://")))
+                                    driver.Navigate().GoToUrl(url.Replace("https://", "http://"));
+
+                                var screenshot = ((ITakesScreenshot)driver).GetScreenshot();
+                                string fileName = $"screenshot_{ConvertUrlToFileName(url)}.png";
+                                string filePath = Path.Combine(outputDir, fileName);
+                                using (MemoryStream stream = new MemoryStream(screenshot.AsByteArray))
+                                {
+                                    using (var fileStream = File.Create(filePath))
+                                    {
+                                        stream.CopyTo(fileStream);
+                                    }
+                                }
+
+                                Log("success", url, filePath, null);
+                            }
+                            catch (Exception ex)
+                            {
+                                string summary = ex.Message.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)[0];
+                                if (summary.Length > 100) summary = summary.Substring(0, 100) + "...";
+                                Log("error", url, null, summary);
                             }
                         }
-
-                        Log("success", url, filePath, null);
-                    }
-                    catch (Exception ex)
-                    {
-                        string summary = ex.Message.Split('\n', '\r')[0];
-                        if (summary.Length > 100) summary = summary.Substring(0, 100) + "...";
-                        Log("error", url, null, summary);
                     }
                 }
+                catch (Exception ex)
+                {
+                    ConsoleWrite($"Error in single-threaded mode: {ex.Message}", ConsoleColor.Red);
+                }
             }
-        }
-        else
-        {
-            // Process URLs using multiple threads
-            await ProcessUrlsWithThreads(urls, threadCount);
-        }
+            else
+            {
+                // Process URLs using multiple threads
+                await ProcessUrlsWithThreads(urls, threadCount);
+            }
 
-        logWriter?.Dispose();
+            logWriter?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            ConsoleWrite($"Error during application execution: {ex.Message}", ConsoleColor.Red);
+        }
     }
 
     static void ShowHelp()
     {
-        Console.WriteLine("USAGE:");
+        ConsoleWrite("USAGE:", ConsoleColor.Yellow);
         Console.WriteLine("  WebSShooter <url or url_list_file> [--threads <count>] [--out <folder>] [--log <logfile>] [--log-format <text|json>]");
         Console.WriteLine();
-        Console.WriteLine("Description:");
+        ConsoleWrite("Description:", ConsoleColor.Yellow);
         Console.WriteLine("  Provide a single URL or a file containing URLs (one per line). A screenshot will be taken for each URL.");
         Console.WriteLine("  Optionally, specify an output folder for screenshots with --out or -o. Default is './screenshots'.");
         Console.WriteLine("  Optionally, specify a log file with --log or -l. Default: no log file.");
         Console.WriteLine("  Optionally, specify log format with --log-format <text|json>. Default: text.");
         Console.WriteLine("  Optionally, specify number of threads with --threads or -t. Default: 10.");
         Console.WriteLine();
-        Console.WriteLine("Examples:");
+        ConsoleWrite("Examples:", ConsoleColor.Yellow);
         Console.WriteLine("  WebSShooter http://example.com");
         Console.WriteLine("  WebSShooter urllist.txt --out C:/myshots");
         Console.WriteLine("  WebSShooter urllist.txt --log result.log");
@@ -174,9 +195,11 @@ class Program
     {
         lock (logLock)
         {
+            ConsoleColor color = type == "success" ? ConsoleColor.Green : ConsoleColor.Red;
             if (logFormat == "json")
             {
-                var logObj = new {
+                var logObj = new
+                {
                     time = DateTime.Now.ToString("s"),
                     type,
                     url,
@@ -184,7 +207,7 @@ class Program
                     message
                 };
                 string json = System.Text.Json.JsonSerializer.Serialize(logObj);
-                Console.WriteLine(json);
+                ConsoleWrite(json, color);
                 logWriter?.WriteLine(json);
             }
             else
@@ -194,7 +217,7 @@ class Program
                     line += $" -> {filePath}";
                 if (!string.IsNullOrEmpty(message))
                     line += $" | {message}";
-                Console.WriteLine(line);
+                ConsoleWrite(line, color);
                 logWriter?.WriteLine(line);
             }
             logWriter?.Flush();
@@ -223,66 +246,76 @@ class Program
     // Process a chunk of URLs
     static async Task ProcessUrlChunk(string[] urlChunk, int threadId)
     {
-        // Each thread needs its own WebDriver instance
-        new DriverManager().SetUpDriver(new ChromeConfig());
-
-        ChromeOptions options = new ChromeOptions();
-        options.AddArgument("--headless");
-        options.AddArgument("--disable-gpu");
-        options.AddArgument("--window-size=1280,800");
-        options.AddArgument("--ignore-certificate-errors");
-        options.AddExcludedArgument("enable-automation");
-        options.AddExcludedArgument("load-extension");
-        options.AddArgument("--log-level=3");
-        options.AddArgument("--silent");
-        options.AddArgument("--disable-logging");
-
-        var service = ChromeDriverService.CreateDefaultService();
-        service.SuppressInitialDiagnosticInformation = true;
-        service.HideCommandPromptWindow = true;
-        service.EnableVerboseLogging = false;
-
-        using (IWebDriver driver = new ChromeDriver(service, options))
+        ConsoleWrite($"Thread {threadId} started, processing {urlChunk.Length} URLs.", ConsoleColor.Cyan);
+        try
         {
-            foreach (var url in urlChunk)
+            // Each thread needs its own WebDriver instance
+            new DriverManager().SetUpDriver(new ChromeConfig());
+
+            ChromeOptions options = new ChromeOptions();
+            options.AddArgument("--headless");
+            options.AddArgument("--disable-gpu");
+            options.AddArgument("--window-size=1280,800");
+            options.AddArgument("--ignore-certificate-errors");
+            options.AddExcludedArgument("enable-automation");
+            options.AddExcludedArgument("load-extension");
+            options.AddArgument("--log-level=3");
+            options.AddArgument("--silent");
+            options.AddArgument("--disable-logging");
+
+            var service = ChromeDriverService.CreateDefaultService();
+            service.SuppressInitialDiagnosticInformation = true;
+            service.HideCommandPromptWindow = true;
+            service.EnableVerboseLogging = false;
+
+            using (IWebDriver driver = new ChromeDriver(service, options))
             {
-                try
+                foreach (var url in urlChunk)
                 {
-                    driver.Navigate().GoToUrl(url);
-                    if (driver.PageSource.Contains("Bad Request") && (url.StartsWith("http://")))
-                        driver.Navigate().GoToUrl(url.Replace("http://", "https://"));
-                    else if (driver.PageSource.Contains("Bad Request") && (url.StartsWith("https://")))
-                        driver.Navigate().GoToUrl(url.Replace("https://", "http://"));
-
-                    var screenshot = ((ITakesScreenshot)driver).GetScreenshot();
-                    string fileName = $"screenshot_{ConvertUrlToFileName(url)}.png";
-                    string filePath = Path.Combine(outputDir, fileName);
-                    using (MemoryStream stream = new MemoryStream(screenshot.AsByteArray))
+                    try
                     {
-                        using (var fileStream = File.Create(filePath))
-                        {
-                            await stream.CopyToAsync(fileStream);
-                        }
-                    }
+                        driver.Navigate().GoToUrl(url);
+                        if (driver.PageSource.Contains("Bad Request") && (url.StartsWith("http://")))
+                            driver.Navigate().GoToUrl(url.Replace("http://", "https://"));
+                        else if (driver.PageSource.Contains("Bad Request") && (url.StartsWith("https://")))
+                            driver.Navigate().GoToUrl(url.Replace("https://", "http://"));
 
-                    Log("success", url, filePath, null);
-                }
-                catch (Exception ex)
-                {
-                    string summary = ex.Message.Split('\n', '\r')[0];
-                    if (summary.Length > 100) summary = summary.Substring(0, 100) + "...";
-                    Log("error", url, null, summary);
+                        var screenshot = ((ITakesScreenshot)driver).GetScreenshot();
+                        string fileName = $"screenshot_{ConvertUrlToFileName(url)}.png";
+                        string filePath = Path.Combine(outputDir, fileName);
+                        using (MemoryStream stream = new MemoryStream(screenshot.AsByteArray))
+                        {
+                            using (var fileStream = File.Create(filePath))
+                            {
+                                await stream.CopyToAsync(fileStream);
+                            }
+                        }
+
+                        Log("success", url, filePath, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        string summary = ex.Message.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)[0];
+                        if (summary.Length > 100) summary = summary.Substring(0, 100) + "...";
+                        Log("error", url, null, summary);
+                    }
                 }
             }
         }
-
-        Console.WriteLine($"Thread {threadId} completed processing {urlChunk.Length} URLs.");
+        catch (Exception ex)
+        {
+            ConsoleWrite($"Error in thread {threadId}: {ex.Message}", ConsoleColor.Red);
+        }
+        finally
+        {
+            ConsoleWrite($"Thread {threadId} completed.", ConsoleColor.Cyan);
+        }
     }
 
     // Process URLs using multiple threads
     static async Task ProcessUrlsWithThreads(string[] urls, int threadCount)
     {
-        Console.WriteLine($"Processing {urls.Length} URLs using {threadCount} threads...");
+        ConsoleWrite($"Processing {urls.Length} URLs using {threadCount} threads...", ConsoleColor.Yellow);
 
         var urlPartitions = PartitionUrls(urls, threadCount);
         var tasks = new List<Task>();
@@ -291,12 +324,11 @@ class Program
         {
             int threadId = i + 1;
             var partition = urlPartitions[i];
-            var task = Task.Run(() => ProcessUrlChunk(partition, threadId));
-            tasks.Add(task);
+            tasks.Add(ProcessUrlChunk(partition, threadId));
         }
 
         await Task.WhenAll(tasks);
-        Console.WriteLine("All threads completed.");
+        ConsoleWrite("All threads completed.", ConsoleColor.Yellow);
     }
 
     static string ConvertUrlToFileName(string url)
@@ -308,5 +340,15 @@ class Program
             fileName = fileName.Substring(0, 100);
         }
         return fileName;
+    }
+
+    static void ConsoleWrite(string message, ConsoleColor color)
+    {
+        lock (logLock)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(message);
+            Console.ResetColor();
+        }
     }
 }

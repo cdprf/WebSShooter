@@ -12,6 +12,7 @@ WebSShooter is a .NET 6.0 console application that takes screenshots of web page
 - Automatic protocol fallback (HTTP to HTTPS and vice versa) for better compatibility
 - Headless browser operation for efficient processing
 - Customizable thread count for optimal performance
+- Duplicate screenshot detection and removal
 
 ## Installation
 
@@ -20,10 +21,93 @@ WebSShooter is a .NET 6.0 console application that takes screenshots of web page
 3. Build the project with `dotnet build`
 4. Run the application with `dotnet run` or execute the compiled binary
 
+## Cross-Platform Builds
+
+WebSShooter can be built as a single-file executable for Windows, Linux, and macOS platforms. The project includes platform-specific build scripts that generate self-contained executables with all required dependencies.
+
+### Windows Build
+
+To build a Windows executable, run the batch script:
+```cmd
+publish-single-file.bat
+```
+
+This will create a single executable file at:
+`bin\Release\net6.0\win-x64\publish\WebSShooter.exe`
+
+### Linux and macOS Builds
+
+To build executables for Linux and macOS, run the shell script:
+```bash
+./publish-single-file.sh
+```
+
+This will create single executable files at:
+- Linux: `bin/Release/net6.0/linux-x64/publish/WebSShooter`
+- macOS: `bin/Release/net6.0/osx-x64/publish/WebSShooter`
+
+The script automatically sets execute permissions for the output files.
+
+### Manual Build Commands
+
+You can also build for specific platforms using the .NET CLI directly:
+
+#### Windows (win-x64)
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+#### Linux (linux-x64)
+```bash
+dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+#### macOS (osx-x64)
+```bash
+dotnet publish -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+### Build Output Structure
+
+The builds are organized in the following directory structure:
+```
+bin/
+├── Release/
+│   ├── net6.0/
+│   │   ├── win-x64/
+│   │   │   └── publish/
+│   │   │       └── WebSShooter.exe
+│   │   ├── linux-x64/
+│   │   │   └── publish/
+│   │   │       └── WebSShooter
+│   │   └── osx-x64/
+│   │       └── publish/
+│   │           └── WebSShooter
+```
+
+### Running the Executables
+
+After building, you can run the executables directly without requiring the .NET runtime to be installed:
+
+#### Windows
+```cmd
+bin\Release\net6.0\win-x64\publish\WebSShooter.exe <url or url_list_file> [options]
+```
+
+#### Linux
+```bash
+./bin/Release/net6.0/linux-x64/publish/WebSShooter <url or url_list_file> [options]
+```
+
+#### macOS
+```bash
+./bin/Release/net6.0/osx-x64/publish/WebSShooter <url or url_list_file> [options]
+```
+
 ## Usage
 
 ```bash
-WebSShooter <url or url_list_file> [--threads <count>] [--out <folder>] [--log <logfile>] [--log-format <text|json>]
+WebSShooter <url or url_list_file> [--threads <count>] [--out <folder>] [--log <logfile>] [--log-format <text|json>] [--remove-duplicates]
 ```
 
 ### Parameters
@@ -33,6 +117,7 @@ WebSShooter <url or url_list_file> [--threads <count>] [--out <folder>] [--log <
 - `--out <folder>` or `-o <folder>`: Output folder for screenshots (default: `./screenshots`)
 - `--log <logfile>` or `-l <logfile>`: Log file path (default: no log file)
 - `--log-format <text|json>`: Log format (default: text)
+- `--remove-duplicates` or `-rd`: Remove duplicate screenshots after processing (default: false)
 - `--help` or `-h`: Display help information
 
 ### Examples
@@ -59,9 +144,29 @@ WebSShooter urllist.txt --log results.log --log-format json
 # Process URLs with custom thread count, output directory, and logging
 WebSShooter urllist.txt --threads 15 --out ./my_screenshots --log processing.log
 
+# Process URLs and remove duplicate screenshots
+WebSShooter urllist.txt --remove-duplicates
+
 # Display help information
 WebSShooter --help
 ```
+
+## Duplicate Screenshot Removal
+
+The application can automatically detect and remove duplicate screenshots after processing is complete. This feature compares the content of all PNG files in the output directory and removes any duplicates, keeping only the first occurrence.
+
+To enable this feature, use the `--remove-duplicates` or `-rd` flag:
+
+```bash
+WebSShooter urllist.txt --remove-duplicates
+```
+
+The duplicate removal process works by:
+1. Calculating an MD5 hash for each PNG file in the output directory
+2. Grouping files with identical hashes
+3. Keeping the first file in each group and deleting the rest
+
+This can significantly reduce disk space usage when processing websites that return identical content for multiple URLs.
 
 ## Multi-threading
 
